@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T&J Wedding Schedule</title>
+    
+    <!-- เรียกใช้ Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- เรียกใช้ React และ ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- เรียกใช้ Babel เพื่อแปลงโค้ด JSX ให้เบราว์เซอร์อ่านเข้าใจ -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- ตั้งค่าฟอนต์และโทนสี -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Prompt', sans-serif; background-color: #Fdfbf7; }
+        .theme-text { color: #b78a7c; } /* Rose Gold */
+        .theme-bg { background-color: #b78a7c; }
+        .theme-border { border-color: #b78a7c; }
+        .sage-bg { background-color: #e4efe7; } /* Soft Sage */
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- ต้องระบุ type เป็น text/babel เพื่อให้ Babel แปลงโค้ด -->
+    <script type="text/babel">
+        // ไม่ต้องใช้คำสั่ง import ในไฟล์ HTML แบบนี้ ให้ดึงจาก React โดยตรง
+        const { useState, useEffect } = React;
+
+        // ข้อมูลกำหนดการ (ข้อมูลตั้งต้น)
+        const initialScheduleData = [
+            { id: 1, time: "07.00 - 08.00 น.", title: "ทำบุญตักบาตร", location: "วัด", details: { couple: "ทำบุญตักบาตรร่วมกันที่วัด (ควรแต่งหน้าทำผมชุดแรกให้เสร็จตั้งแต่ 06.00 น.)", team: "เตรียมชุดใส่บาตร ซองปัจจัย และจัดมุมถ่ายภาพ", mc: "-" }, isCompleted: false },
+            { id: 2, time: "08.00 - 09.00 น.", title: "ต้อนรับแขก & ถ่ายรูปหน้างาน", location: "โรงแรมอิมพีเรียลแม่ฮ่องสอน", details: { couple: "ทัชอัพหน้าผมให้เรียบร้อยก่อน 08.45 น. ประจำจุดถ่ายรูป", team: "เชิญแขกเซ็นอวยพร แจกของชำร่วย เชิญรับของว่าง", mc: "08.45 น. ประกาศให้แขกเตรียมตัวเข้าสู่ห้องจัดเลี้ยง" }, isCompleted: false },
+            { id: 3, time: "09.00 - 09.15 น.", title: "เปิดตัวบ่าวสาว", location: "ห้องจัดเลี้ยง", details: { couple: "เดินเข้างานตามจังหวะเพลง ยิ้มทักทายแขก", team: "ประสานงานเปิดเพลง เปิดประตู และจัดระเบียบทางเดิน", mc: "กล่าวต้อนรับแขกเข้าสู่งานอย่างเป็นทางการ" }, isCompleted: false },
+            { id: 4, time: "09.15 - 09.45 น.", title: "มอบสินสอด & สวมแหวน", location: "บนเวที", details: { couple: "เข้าสู่พิธีสวมแหวนตามฤกษ์ ช่างภาพจับภาพสวมแหวน", team: "ยกพานสินสอดและพานแหวนมาวางที่โต๊ะพิธี", mc: "เชิญคุณพ่อคุณแม่และผู้ใหญ่บนเวที" }, isCompleted: false },
+            { id: 5, time: "09.45 - 10.15 น.", title: "พิธีมัดมือ (ผู้ใหญ่)", location: "บนเวที", details: { couple: "รับพรและไหว้ขอบคุณบิดามารดาและผู้ใหญ่อาวุโส", team: "จัดเตรียมพานรับรองด้ายมงคล (ไม่มีบายศรี)", mc: "เชิญญาติผู้ใหญ่ร่วมผูกด้ายมงคลและกล่าวให้พร" }, isCompleted: false },
+            { id: 6, time: "10.15 - 10.45 น.", title: "กล่าวอวยพร (VIP)", location: "บนเวที", details: { couple: "ยืนรับฟังคำอวยพร มอบของที่ระลึกขอบคุณ", team: "แสตนด์บายส่งไมโครโฟนให้ VIP", mc: "เชิญแขกผู้ใหญ่ 3 ท่านขึ้นกล่าวอวยพรบนเวที" }, isCompleted: false },
+            { id: 7, time: "10.45 - 11.30 น.", title: "พิธีผูกข้อมือ (แขกทั่วไป)", location: "ด้านล่างเวที", details: { couple: "นั่งประจำจุดด้านล่างเวทีเพื่อรับการผูกข้อมือจากแขก 200 ท่าน", team: "จัดเก้าอี้ 2 ตัว แจ้งโรงแรมเริ่มเสิร์ฟอาหาร", mc: "เชิญแขกผูกข้อมือและเชิญรับประทานอาหารกลางวัน" }, isCompleted: false },
+            { id: 8, time: "11.30 - 12.00 น.", title: "ถ่ายภาพร่วมกับเพื่อนๆ", location: "บนเวที", details: { couple: "ถ่ายรูปร่วมกับแก๊งเพื่อนแบบจัดเต็ม", team: "จัดรูปขบวนเพื่อนๆ แนะนำท่าโพส คุมเวลา", mc: "เชิญแก๊งเพื่อนสนิทขึ้นเวทีเพื่อเก็บภาพ" }, isCompleted: false },
+            { id: 9, time: "12.00 - 12.30 น.", title: "ขอบคุณแขก & จบพิธีการ", location: "บริเวณห้องจัดเลี้ยง", details: { couple: "เดินทักทายแขกตามโต๊ะ (Table greeting)", team: "ตรวจสอบความเรียบร้อย รวบรวมซอง ของมีค่า", mc: "กล่าวปิดงานอย่างเป็นทางการ ขอบคุณแขก" }, isCompleted: false }
+        ];
+
+        const App = () => {
+            const [schedule, setSchedule] = useState(initialScheduleData);
+            const [expandedId, setExpandedId] = useState(null);
+            const [currentTime, setCurrentTime] = useState(new Date());
+
+            // นาฬิกา Real-time
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+                return () => clearInterval(timer);
+            }, []);
+
+            const toggleComplete = (id) => {
+                setSchedule(schedule.map(item => 
+                    item.id === id ? { ...item, isCompleted: !item.isCompleted } : item
+                ));
+            };
+
+            const toggleExpand = (id) => {
+                setExpandedId(expandedId === id ? null : id);
+            };
+
+            const completedCount = schedule.filter(s => s.isCompleted).length;
+            const progress = (completedCount / schedule.length) * 100;
+
+            return (
+                <div className="min-h-screen p-4 md:p-8">
+                    <div className="max-w-3xl mx-auto">
+                        
+                        {/* Header Theme T&J */}
+                        <div className="text-center mb-8">
+                            <div className="inline-block p-4 rounded-full border-2 theme-border mb-4">
+                                <h1 className="text-4xl font-light theme-text tracking-widest">T <span className="text-xl">&</span> J</h1>
+                            </div>
+                            <h2 className="text-2xl font-semibold text-gray-800">Wedding Schedule & Checklist</h2>
+                            <p className="text-gray-500 mt-2">3 มกราคม 2570 • โรงแรมอิมพีเรียลแม่ฮ่องสอน</p>
+                            <div className="mt-4 inline-flex items-center bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
+                                <span className="font-mono text-lg theme-text">
+                                    {currentTime.toLocaleTimeString('th-TH')}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="bg-white p-6 rounded-2xl shadow-sm mb-6 border border-gray-100">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-gray-600 font-medium">ความคืบหน้าของงาน</span>
+                                <span className="theme-text font-bold">{Math.round(progress)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-2.5">
+                                <div className="theme-bg h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                            </div>
+                        </div>
+
+                        {/* Checklist */}
+                        <div className="space-y-4">
+                            {schedule.map((item) => (
+                                <div key={item.id} className={`bg-white rounded-2xl shadow-sm border-l-4 transition-all duration-300 ${item.isCompleted ? 'border-green-400 opacity-75' : 'theme-border'}`}>
+                                    <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => toggleExpand(item.id)}>
+                                        <div className="flex items-center gap-4">
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); toggleComplete(item.id); }}
+                                                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${item.isCompleted ? 'bg-green-400 border-green-400 text-white' : 'border-gray-300'}`}
+                                            >
+                                                {item.isCompleted && <span className="text-sm">✓</span>}
+                                            </button>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-sm font-semibold px-2 py-1 rounded-md ${item.isCompleted ? 'bg-green-50 text-green-600' : 'sage-bg theme-text'}`}>
+                                                        {item.time}
+                                                    </span>
+                                                </div>
+                                                <h3 className={`text-lg font-medium mt-1 ${item.isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                                                    {item.title}
+                                                </h3>
+                                                <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                                    📍 {item.location}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-gray-400">
+                                            {expandedId === item.id ? '▲' : '▼'}
+                                        </div>
+                                    </div>
+
+                                    {/* Expanded Details */}
+                                    {expandedId === item.id && (
+                                        <div className="p-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl text-sm space-y-3">
+                                            <div className="bg-white p-3 rounded-lg border border-gray-100">
+                                                <p className="font-semibold text-gray-700 mb-1">💍 บ่าวสาว:</p>
+                                                <p className="text-gray-600">{item.details.couple}</p>
+                                            </div>
+                                            <div className="bg-white p-3 rounded-lg border border-gray-100">
+                                                <p className="font-semibold text-gray-700 mb-1">🎬 ทีมงาน / รันคิว:</p>
+                                                <p className="text-gray-600">{item.details.team}</p>
+                                            </div>
+                                            <div className="bg-white p-3 rounded-lg border border-gray-100">
+                                                <p className="font-semibold text-gray-700 mb-1">🎤 พิธีกร (MC):</p>
+                                                <p className="text-gray-600">{item.details.mc}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
