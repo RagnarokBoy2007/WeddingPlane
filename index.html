@@ -3,677 +3,728 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TJ Wedding Schedule</title>
-    
+    <title>ระบบจัดการรายชื่อแขกงานแต่ง ไก่ & มาย</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    
-    <!-- Babel for in-browser JSX compilation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap');
-        
-        body {
-            font-family: 'Inter', 'Noto Sans Thai', sans-serif;
+    <!-- SheetJS for Excel Import/Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Google Fonts: Inter & Sarabun -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Sarabun', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        wedding: {
+                            50: '#fdf8f6',
+                            100: '#fbe8e6',
+                            200: '#f5d3cf',
+                            300: '#ecb1aa',
+                            400: '#e08479',
+                            500: '#d05c4f',
+                            600: '#b84437',
+                            700: '#9b372c',
+                            800: '#7f3128',
+                            900: '#692d24',
+                            gold: '#d4af37',
+                            goldLight: '#fdf6db'
+                        }
+                    }
+                }
+            }
         }
-
-        @keyframes shimmer {
-            100% { transform: translateX(100%); }
-        }
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-    </style>
+    </script>
 </head>
-<body>
-    <div id="root"></div>
+<body class="bg-wedding-50 font-sans text-gray-800 min-h-screen flex flex-col">
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+    <!-- Header Banner -->
+    <header class="bg-gradient-to-r from-wedding-800 via-wedding-700 to-wedding-900 text-white shadow-lg py-6 px-4 sm:px-8">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 rounded-full bg-wedding-gold flex items-center justify-center text-wedding-900 shadow-md">
+                    <i class="fa-solid fa-heart text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold tracking-wide">งานแต่งงาน ไก่ & มาย</h1>
+                    <p class="text-wedding-200 text-sm">ระบบจัดการ จัดหมวดหมู่ และเรียงลำดับรายชื่อแขกผู้มีเกียรติ</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <button type="button" onclick="openAddModal()" class="bg-wedding-gold hover:bg-yellow-500 text-wedding-900 font-semibold px-4 py-2.5 rounded-xl shadow-md transition flex items-center space-x-2 text-sm cursor-pointer">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>เพิ่มรายชื่อแขก</span>
+                </button>
+                <label class="bg-white/10 hover:bg-white/20 text-white font-medium px-4 py-2.5 rounded-xl border border-white/30 cursor-pointer transition flex items-center space-x-2 text-sm">
+                    <i class="fa-solid fa-file-excel text-emerald-400"></i>
+                    <span>นำเข้า Excel</span>
+                    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelImport(event)">
+                </label>
+                <button type="button" onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2.5 rounded-xl shadow-md transition flex items-center space-x-2 text-sm cursor-pointer">
+                    <i class="fa-solid fa-file-arrow-down"></i>
+                    <span>Export .xlsx</span>
+                </button>
+            </div>
+        </div>
+    </header>
 
-        // SVG Data to replace lucide-react imports
-        const iconData = {
-            Heart: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>,
-            Camera: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>,
-            Users: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-            Mic: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>,
-            Clock: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-            MapPin: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>,
-            ChevronDown: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
-            ChevronUp: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>,
-            CheckCircle2: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-            Circle: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/></svg>,
-            ClipboardList: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>,
-            Edit2: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>,
-            Save: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>,
-            X: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>,
-            Smartphone: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>,
-            Play: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>,
-            FastForward: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 19 22 12 13 5 13 19"/><polygon points="2 19 11 12 2 5 2 19"/></svg>,
-            Power: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" x2="12" y1="2" y2="12"/></svg>,
-            BellRing: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M4 2C2.8 3.7 2 5.7 2 8"/><path d="M22 8c0-2.3-.8-4.3-2-6"/></svg>,
-            Settings: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-        };
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-8 py-8 flex-grow w-full">
 
-        const Icon = ({ name, className }) => {
-            const svg = iconData[name];
-            if (!svg) return null;
-            return React.cloneElement(svg, { className });
-        };
+        <!-- Dashboard Stat Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                <div class="w-12 h-12 rounded-xl bg-wedding-100 text-wedding-600 flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-semibold">รายชื่อทั้งหมด</p>
+                    <h3 id="statTotal" class="text-2xl font-bold text-gray-800">0</h3>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-chair"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-semibold">จำนวนที่นั่งรวม</p>
+                    <h3 id="statSeats" class="text-2xl font-bold text-gray-800">0</h3>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-semibold">ยืนยันมาร่วมงาน</p>
+                    <h3 id="statConfirmed" class="text-2xl font-bold text-emerald-600">0</h3>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-semibold">รอดำเนินการ</p>
+                    <h3 id="statPending" class="text-2xl font-bold text-amber-600">0</h3>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
+                <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-semibold">ไม่สะดวกมาร่วม</p>
+                    <h3 id="statDeclined" class="text-2xl font-bold text-rose-600">0</h3>
+                </div>
+            </div>
+        </div>
 
-        const initialScheduleData = [
-          {
-            id: 1,
-            time: "07.00 - 08.00 น.",
-            title: "ทำบุญตักบาตร",
-            location: "วัด",
-            icon: "Heart",
-            details: {
-              couple: "ทำบุญตักบาตรร่วมกันที่วัด (ควรแต่งหน้าทำผมชุดแรกให้เสร็จตั้งแต่ 06.00 น.) ถวายภัตตาหาร/สังฆทาน รับพรจากพระสงฆ์ และกรวดน้ำอุทิศส่วนกุศล",
-              team: "เตรียมชุดใส่บาตร ซองปัจจัย และจัดมุมถ่ายภาพแสงเช้าที่วัด",
-              mc: "-"
-            }
-          },
-          {
-            id: 2,
-            time: "08.00 - 09.00 น.",
-            title: "ต้อนรับแขก & ถ่ายรูปหน้าจุดแจกของชำร่วย",
-            location: "โรงแรมอิมพีเรียลแม่ฮ่องสอน",
-            icon: "Camera",
-            details: {
-              couple: "เดินทางมาถึงโรงแรม ทัชอัพหน้าผมให้เรียบร้อยก่อน 08.45 น. และมายืนประจำจุดเพื่อถ่ายรูปร่วมกับแขกที่หน้าโต๊ะลงทะเบียน/แจกของชำร่วย",
-              team: "เชิญแขกเซ็นอวยพร มอบของชำร่วย เชิญรับประทานของว่าง (Coffee Break) และเช็คความพร้อมของเวที ไมโครโฟน พานสินสอด พานด้ายมงคล",
-              mc: "08.45 น. ประกาศให้แขกเตรียมตัวทยอยเข้าสู่ที่นั่งภายในห้องจัดเลี้ยง"
-            }
-          },
-          {
-            id: 3,
-            time: "09.00 - 09.15 น.",
-            title: "เปิดตัวบ่าวสาว",
-            location: "ห้องจัดเลี้ยง",
-            icon: "Users",
-            details: {
-              couple: "เดินเข้าสู่บริเวณงานตามจังหวะเพลงที่เตรียมไว้ ยิ้มทักทายแขกสองข้างทาง และขึ้นไปยืนประจำจุดกึ่งกลางเวที",
-              team: "ประสานงานเปิดเพลง เปิดประตู และจัดระเบียบทางเดินให้บ่าวสาว",
-              mc: "09.00 น. กล่าวต้อนรับแขกเข้าสู่งานอย่างเป็นทางการ และเชิญบ่าวสาวเข้าสู่บริเวณงานและขึ้นเวที"
-            }
-          },
-          {
-            id: 4,
-            time: "09.15 - 09.45 น.",
-            title: "มอบสินสอด & สวมแหวน",
-            location: "บนเวที",
-            icon: "Heart",
-            details: {
-              couple: "เข้าสู่พิธีสวมแหวนตามฤกษ์ โดยผลัดกันสวมแหวนและไหว้ขอบคุณ ช่างภาพจับภาพจังหวะสวมแหวนและโชว์แหวน",
-              team: "ยกพานสินสอดและพานแหวนมาวางที่โต๊ะพิธีบนเวที อำนวยความสะดวกให้ผู้ใหญ่ฝ่ายชาย",
-              mc: "เชิญคุณพ่อคุณแม่และผู้ใหญ่บนเวที เพื่อประกอบพิธีมอบสินสอดทองหมั้น และสวมแหวน"
-            }
-          },
-          {
-            id: 5,
-            time: "09.45 - 10.15 น.",
-            title: "พิธีมัดมือ (โดยผู้ใหญ่)",
-            location: "บนเวที",
-            icon: "Heart",
-            details: {
-              couple: "รับพรและไหว้ขอบคุณบิดามารดาและผู้ใหญ่อาวุโสแต่ละท่านที่ผูกด้ายมงคลให้",
-              team: "จัดเตรียมพานรับรองด้ายมงคล (ไม่มีบายศรี) เชิญบิดามารดา/ผู้ใหญ่ขึ้นเวที และจัดเตรียมเก้าอี้ 4-6 ตัวบนเวที",
-              mc: "เชิญคุณพ่อคุณแม่ และญาติผู้ใหญ่ของทั้งสองฝ่าย ร่วมผูกด้ายมงคลและกล่าวให้พรบ่าวสาว"
-            }
-          },
-          {
-            id: 6,
-            time: "10.15 - 10.45 น.",
-            title: "กล่าวอวยพร (VIP 3 ท่าน)",
-            location: "บนเวที",
-            icon: "Mic",
-            details: {
-              couple: "ยืนรับฟังคำอวยพร มอบของที่ระลึกขอบคุณ (ถ้ามี) และโค้งไหว้ขอบคุณ VIP แต่ละท่าน",
-              team: "แสตนด์บายส่งไมโครโฟนให้ VIP บริเวณข้างเวที และรับไมค์กลับเมื่อกล่าวจบ",
-              mc: "เชิญแขกผู้ใหญ่ 3 ท่านขึ้นกล่าวอวยพรบนเวที (ท่านละประมาณ 3-5 นาที)"
-            }
-          },
-          {
-            id: 7,
-            time: "10.45 - 11.30 น.",
-            title: "พิธีผูกข้อมือ (แขกทั่วไป)",
-            location: "ด้านล่างเวที",
-            icon: "Users",
-            details: {
-              couple: "นั่งประจำจุดด้านล่างเวทีเพื่อรับการผูกข้อมือจากแขก 200 ท่าน พูดคุยทักทายและถ่ายรูป",
-              team: "จัดเตรียมเก้าอี้ 2 ตัวด้านล่างเวที จัดแถวแขกที่มารอผูกข้อมือ **และแจ้งโรงแรมให้เริ่มเสิร์ฟอาหารมื้อหลัก**",
-              mc: "เชิญแขกผู้มีเกียรติร่วมผูกข้อมือด้านล่างเวที และแจ้งเปิดไลน์อาหารให้แขกรับประทานอาหารกลางวัน"
-            }
-          },
-          {
-            id: 8,
-            time: "11.30 - 12.00 น.",
-            title: "ถ่ายภาพร่วมกับเพื่อนๆ",
-            location: "บนเวที",
-            icon: "Camera",
-            details: {
-              couple: "ถ่ายรูปร่วมกับแก๊งเพื่อนเจ้าบ่าวเจ้าสาวแบบจัดเต็ม สนุกสนาน",
-              team: "จัดรูปขบวนเพื่อนๆ บนเวที แนะนำท่าโพส และคุมเวลาไม่ให้ยืดเยื้อจนเกินไป",
-              mc: "เชิญแก๊งเพื่อนสนิททุกท่านขึ้นมาบนเวทีเพื่อเก็บภาพความประทับใจ"
-            }
-          },
-          {
-            id: 9,
-            time: "12.00 - 12.30 น.",
-            title: "ขอบคุณแขก & จบพิธีการ",
-            location: "บริเวณห้องจัดเลี้ยง",
-            icon: "Heart",
-            details: {
-              couple: "เดินทักทายแขกตามโต๊ะ (Table greeting) ขอบคุณผู้ร่วมงาน และถ่ายภาพร่วมกับแขกที่ยังอยู่",
-              team: "ตรวจสอบความเรียบร้อย รวบรวมซอง ของมีค่า และของชำร่วยที่เหลือส่งคืนบ่าวสาวหรือครอบครัว",
-              mc: "กล่าวปิดงานอย่างเป็นทางการ ขอบคุณแขกที่มาร่วมงาน และอวยพรให้แขกมีความสุขกับมื้ออาหาร"
-            }
-          }
+        <!-- Filter & Search Toolbar -->
+        <div class="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div class="w-full md:w-1/3 relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" id="searchInput" oninput="filterGuests()" placeholder="ค้นหาชื่อ, ชื่อเล่น, เบอร์โทร, หมายเหตุ..." class="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wedding-400 text-sm">
+            </div>
+            
+            <div class="w-full md:w-auto flex flex-wrap items-center gap-3">
+                <div class="flex items-center space-x-2 w-full sm:w-auto">
+                    <label class="text-xs font-semibold text-gray-500 whitespace-nowrap">จัดเรียง:</label>
+                    <select id="sortFilter" onchange="filterGuests()" class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-wedding-400 w-full sm:w-auto">
+                        <option value="category">เรียงตามหมวดหมู่</option>
+                        <option value="name">เรียงตามชื่อ (ก-ฮ)</option>
+                        <option value="table">เรียงตามลำดับโต๊ะ</option>
+                        <option value="status">เรียงตามสถานะ RSVP</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center space-x-2 w-full sm:w-auto">
+                    <label class="text-xs font-semibold text-gray-500 whitespace-nowrap">หมวดหมู่:</label>
+                    <select id="categoryFilter" onchange="filterGuests()" class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-wedding-400 w-full sm:w-auto">
+                        <option value="">ทั้งหมดทุกหมวดหมู่</option>
+                        <option value="ครอบครัวเจ้าบ่าว">ครอบครัวเจ้าบ่าว</option>
+                        <option value="ครอบครัวเจ้าสาว">ครอบครัวเจ้าสาว</option>
+                        <option value="ญาติผู้ใหญ่">ญาติผู้ใหญ่</option>
+                        <option value="เพื่อนสนิทเจ้าบ่าว">เพื่อนสนิทเจ้าบ่าว</option>
+                        <option value="เพื่อนสนิทเจ้าสาว">เพื่อนสนิทเจ้าสาว</option>
+                        <option value="เพื่อนร่วมงาน">เพื่อนร่วมงาน</option>
+                        <option value="แขกผู้ใหญ่/VIP">แขกผู้ใหญ่ / VIP</option>
+                        <option value="อื่นๆ">อื่นๆ</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center space-x-2 w-full sm:w-auto">
+                    <label class="text-xs font-semibold text-gray-500 whitespace-nowrap">สถานะ:</label>
+                    <select id="statusFilter" onchange="filterGuests()" class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-wedding-400 w-full sm:w-auto">
+                        <option value="">ทุกสถานะ RSVP</option>
+                        <option value="ยืนยันแล้ว">ยืนยันแล้ว</option>
+                        <option value="รอดำเนินการ">รอดำเนินการ</option>
+                        <option value="ไม่สะดวก">ไม่สะดวก</option>
+                    </select>
+                </div>
+
+                <button type="button" onclick="resetFilters()" class="text-gray-500 hover:text-wedding-600 text-sm font-medium px-3 py-2 transition flex items-center space-x-1 cursor-pointer">
+                    <i class="fa-solid fa-rotate-left"></i>
+                    <span>รีเซ็ต</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Guest Table Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-100 text-xs uppercase font-semibold text-gray-500 tracking-wider">
+                            <th class="py-4 px-4 sm:px-6 w-12 text-center">#</th>
+                            <th class="py-4 px-4">ชื่อ - นามสกุล / ชื่อเล่น</th>
+                            <th class="py-4 px-4">หมวดหมู่</th>
+                            <th class="py-4 px-4 text-center">จำนวนที่นั่ง</th>
+                            <th class="py-4 px-4 text-center">โต๊ะ</th>
+                            <th class="py-4 px-4 text-center">สถานะ RSVP</th>
+                            <th class="py-4 px-4">เบอร์โทร / หมายเหตุ</th>
+                            <th class="py-4 px-4 text-center w-28">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="guestTableBody" class="divide-y divide-gray-100 text-sm">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden py-16 text-center">
+                <div class="w-16 h-16 bg-wedding-100 text-wedding-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-folder-open"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-700">ไม่พบรายชื่อแขกที่ค้นหา</h3>
+                <p class="text-gray-400 text-sm mt-1">ลองเปลี่ยนคำค้นหา หรือเพิ่มรายชื่อแขกใหม่เข้าสู่ระบบ</p>
+            </div>
+
+            <!-- Table Footer -->
+            <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center text-sm text-gray-500">
+                <span id="tableCountInfo">แสดงทั้งหมด 0 รายชื่อ</span>
+                <div class="flex items-center space-x-3 mt-2 sm:mt-0">
+                    <button type="button" onclick="loadSampleData()" class="text-xs text-wedding-600 hover:underline font-semibold cursor-pointer">
+                        <i class="fa-solid fa-database mr-1"></i>โหลดข้อมูลตัวอย่างเริ่มต้น
+                    </button>
+                    <span>|</span>
+                    <button type="button" onclick="clearAllGuests()" class="text-xs text-rose-600 hover:underline font-semibold cursor-pointer">
+                        <i class="fa-solid fa-trash mr-1"></i>ล้างข้อมูลทั้งหมด
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-6 text-center text-sm text-gray-500 mt-auto">
+        <p>ระบบจัดการรายชื่อแขกงานแต่งงาน ไก่ & มาย &copy; 2026 | สร้างสรรค์เพื่อความทรงจำสุดพิเศษ</p>
+    </footer>
+
+    <!-- Add/Edit Guest Modal -->
+    <div id="guestModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden transform transition-all">
+            <div class="bg-gradient-to-r from-wedding-700 to-wedding-800 text-white px-6 py-4 flex justify-between items-center">
+                <h3 id="modalTitle" class="text-lg font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>เพิ่มรายชื่อแขกใหม่</span>
+                </h3>
+                <button type="button" onclick="closeModal()" class="text-white/80 hover:text-white text-xl p-1 transition cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="guestForm" onsubmit="saveGuest(event)" class="p-6 space-y-4">
+                <input type="hidden" id="guestIndex">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">ชื่อ - นามสกุล <span class="text-red-500">*</span></label>
+                    <input type="text" id="guestName" required placeholder="เช่น คุณสมชาย ใจดี" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wedding-400 text-sm">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">ชื่อเล่น</label>
+                        <input type="text" id="guestNickname" placeholder="เช่น ชาย" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wedding-400 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">หมวดหมู่ <span class="text-red-500">*</span></label>
+                        <select id="guestCategory" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wedding-400 text-sm">
+                            <option value="ครอบครัวเจ้าบ่าว">ครอบครัวเจ้าบ่าว</option>
+                            <option value="ครอบครัวเจ้าสาว">ครอบครัวเจ้าสาว</option>
+                            <option value="ญาติผู้ใหญ่">ญาติผู้ใหญ่</option>
+                            <option value="เพื่อนสนิทเจ้าบ่าว">เพื่อนสนิทเจ้าบ่าว</option>
+                            <option value="เพื่อนสนิทเจ้าสาว">เพื่อนสนิทเจ้าสาว</option>
+                            <option value="เพื่อนร่วมงาน">เพื่อนร่วมงาน</option>
+                            <option value="แขกผู้ใหญ่/VIP">แขกผู้ใหญ่ / VIP</option>
+                            <option value="อื่นๆ">อื่นๆ</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">จำนวนที่นั่ง</label>
+                        <input type="number" id="guestSeats" min="1" value="1" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wedding-400 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">โต๊ะที่นั่ง</label>
+                        <input type="text" id="guestTable" placeholder="เช่น T-01" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wedding-400 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">สถานะ RSVP</label>
+                        <select id="guestStatus" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wedding-400 text-sm">
+                            <option value="ยืนยันแล้ว">ยืนยันแล้ว</option>
+                            <option value="รอดำเนินการ" selected>รอดำเนินการ</option>
+                            <option value="ไม่สะดวก">ไม่สะดวก</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">เบอร์โทรศัพท์</label>
+                    <input type="text" id="guestPhone" placeholder="เช่น 081-234-5678" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wedding-400 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">หมายเหตุ / อาหารพิเศษ</label>
+                    <input type="text" id="guestNote" placeholder="เช่น ทานมังสวิรัติ, เพื่อนสนิทสมัยมัธยม" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wedding-400 text-sm">
+                </div>
+
+                <div class="pt-4 flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal()" class="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium text-sm transition cursor-pointer">ยกเลิก</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-wedding-600 hover:bg-wedding-700 text-white font-semibold text-sm shadow-md transition cursor-pointer">บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-xl transform translate-y-24 opacity-0 transition-all duration-300 z-50 flex items-center space-x-3">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toastMessage" class="text-sm font-medium">บันทึกข้อมูลสำเร็จ</span>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Initial Sample Data for Kai & May's Wedding
+        const defaultGuests = [
+            { name: "คุณสมชาย ใจดี", nickname: "ชาย", category: "ครอบครัวเจ้าบ่าว", seats: 2, table: "T-01", status: "ยืนยันแล้ว", phone: "081-234-5678", note: "คุณอาเจ้าบ่าว" },
+            { name: "คุณหญิง รัตนาภรณ์", nickname: "หญิง", category: "ครอบครัวเจ้าสาว", seats: 2, table: "T-02", status: "ยืนยันแล้ว", phone: "089-876-5432", note: "คุณป้าเจ้าสาว" },
+            { name: "นพ. กิตติพงษ์ สุขสำราญ", nickname: "หมออั๋น", category: "แขกผู้ใหญ่/VIP", seats: 2, table: "VIP-1", status: "ยืนยันแล้ว", phone: "082-333-4444", note: "ประธานในพิธี" },
+            { name: "คุณธนภัทร และภรรยา", nickname: "ภัทร", category: "เพื่อนสนิทเจ้าบ่าว", seats: 2, table: "T-05", status: "ยืนยันแล้ว", phone: "086-555-7890", note: "เพื่อนสนิทมหาวิทยาลัย" },
+            { name: "คุณพิมพ์ชนก วงศ์สวัสดิ์", nickname: "พิม", category: "เพื่อนสนิทเจ้าสาว", seats: 1, table: "T-06", status: "รอดำเนินการ", phone: "085-111-2233", note: "เพื่อนเจ้าสาว" },
+            { name: "คุณอนันต์ และคณะ", nickname: "นันต์", category: "เพื่อนร่วมงาน", seats: 4, table: "T-09", status: "ยืนยันแล้ว", phone: "02-555-1234", note: "ฝ่ายบัญชีบริษัท" },
+            { name: "คุณยายทองคำ มั่นคง", nickname: "ยายทอง", category: "ญาติผู้ใหญ่", seats: 2, table: "T-03", status: "ยืนยันแล้ว", phone: "084-999-0000", note: "ต้องการรถเข็นวีลแชร์" },
+            { name: "คุณอภิสิทธิ์ เจริญพงษ์", nickname: "เบิร์ด", category: "เพื่อนสนิทเจ้าบ่าว", seats: 1, table: "T-05", status: "ไม่สะดวก", phone: "087-444-5566", note: "ติดภารกิจต่างประเทศ" }
         ];
 
-        function WeddingScheduleApp() {
-          const [schedule, setSchedule] = useState(initialScheduleData);
-          const [completedItems, setCompletedItems] = useState([]);
-          const [expandedItem, setExpandedItem] = useState(null);
-          const [editingId, setEditingId] = useState(null);
-          const [editForm, setEditForm] = useState(null);
-          const [currentTime, setCurrentTime] = useState(new Date());
+        let guests = [];
 
-          const [lineId, setLineId] = useState("");
-          const [isTestMode, setIsTestMode] = useState(false);
-          const [notifiedTasks, setNotifiedTasks] = useState([]);
-          const [toasts, setToasts] = useState([]);
-          const [showSettings, setShowSettings] = useState(false);
-
-          useEffect(() => {
-            const timer = setInterval(() => {
-              if (!isTestMode) {
-                setCurrentTime(new Date());
-              } else {
-                setCurrentTime(prev => new Date(prev.getTime() + 1000));
-              }
-            }, 1000);
-            return () => clearInterval(timer);
-          }, [isTestMode]);
-
-          const extractEndTime = (timeStr) => {
-            const parts = timeStr.split('-');
-            if (parts.length > 1) {
-              const timePart = parts[1].trim().split(' ')[0]; 
-              const [h, m] = timePart.split('.').map(Number);
-              return { h, m };
-            }
-            return null;
-          };
-
-          useEffect(() => {
-            schedule.forEach(item => {
-              if (completedItems.includes(item.id)) return;
-              if (notifiedTasks.includes(item.id)) return;
-
-              const end = extractEndTime(item.time);
-              if (!end) return;
-
-              const itemEndDateTime = new Date(currentTime);
-              itemEndDateTime.setHours(end.h, end.m, 0, 0);
-
-              const isWeddingDay = currentTime.getFullYear() === 2027 && currentTime.getMonth() === 0 && currentTime.getDate() === 3;
-
-              if (isWeddingDay && currentTime > itemEndDateTime) {
-                const notifyId = Date.now() + Math.random();
-                const msg = `ส่งแจ้งเตือนเข้า LINE ID: ${lineId || '[ไม่ได้ระบุ ID]'} \n⚠️ กิจกรรม "${item.title}" เลยกำหนดเวลาแล้ว กรุณาตรวจสอบ!`;
-                
-                setToasts(prev => [...prev, { id: notifyId, msg, title: "LINE Notify" }]);
-                setNotifiedTasks(prev => [...prev, item.id]);
-
-                setTimeout(() => {
-                  setToasts(prev => prev.filter(t => t.id !== notifyId));
-                }, 8000);
-              }
-            });
-          }, [currentTime, schedule, completedItems, notifiedTasks, lineId]);
-
-          const startTestMode = () => {
-            setIsTestMode(true);
-            setCurrentTime(new Date('2027-01-03T07:59:50'));
-            setNotifiedTasks([]); 
-          };
-
-          const advanceTime = () => {
-            setCurrentTime(prev => new Date(prev.getTime() + 10 * 60000)); 
-          };
-
-          const stopTestMode = () => {
-            setIsTestMode(false);
-            setCurrentTime(new Date());
-            setNotifiedTasks([]);
-          };
-
-          const progress = Math.round((completedItems.length / schedule.length) * 100);
-
-          const toggleComplete = (id) => {
-            setCompletedItems(prev => 
-              prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
-            );
-          };
-
-          const toggleExpand = (id) => {
-            if (editingId) return; 
-            setExpandedItem(prev => prev === id ? null : id);
-          };
-
-          const startEdit = (item, e) => {
-            e.stopPropagation();
-            setEditingId(item.id);
-            setEditForm({ ...item });
-            setExpandedItem(item.id); 
-          };
-
-          const cancelEdit = (e) => {
-            e.stopPropagation();
-            setEditingId(null);
-            setEditForm(null);
-          };
-
-          const saveEdit = (e) => {
-            e.stopPropagation();
-            setSchedule(prev => prev.map(item => item.id === editingId ? editForm : item));
-            setEditingId(null);
-            setEditForm(null);
-          };
-
-          const handleFormChange = (field, value, isDetail = false) => {
-            if (isDetail) {
-              setEditForm(prev => ({
-                ...prev,
-                details: { ...prev.details, [field]: value }
-              }));
+        // Load data on startup
+        window.onload = function() {
+            const saved = localStorage.getItem('kai_may_wedding_guests');
+            if (saved) {
+                try {
+                    guests = JSON.parse(saved);
+                } catch(e) {
+                    guests = [...defaultGuests];
+                }
             } else {
-              setEditForm(prev => ({ ...prev, [field]: value }));
+                guests = [...defaultGuests];
             }
-          };
+            filterGuests();
+        };
 
-          return (
-            <div className="min-h-screen bg-gradient-to-br from-rose-50 via-[#fcfbf9] to-[#f4f7f6] p-4 md:p-8 font-sans selection:bg-rose-200">
-              <div className="max-w-4xl mx-auto space-y-6">
-                
-                {/* Header Section */}
-                <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-xl overflow-hidden border border-rose-100">
-                  <div className="bg-gradient-to-r from-rose-300 via-rose-200 to-rose-300 h-2 w-full"></div>
-                  <div className="p-8 text-center relative">
-                    
-                    {/* Realtime Clock */}
-                    <div className="absolute top-6 right-6 flex flex-col items-end">
-                      <div className="flex items-center gap-2 text-rose-700 bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100 shadow-sm">
-                        <Icon name="Clock" className="w-4 h-4 animate-pulse" />
-                        <span className="font-mono text-sm font-semibold tracking-wider">
-                          {currentTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second:'2-digit' })}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Monogram & Title */}
-                    <div className="flex flex-col items-center justify-center mb-6 mt-4">
-                      <h1 className="text-5xl md:text-6xl font-serif text-rose-800 mb-1 tracking-wider flex items-center gap-4">
-                        T <span className="text-3xl text-rose-300 font-light">&</span> J
-                      </h1>
-                      <p className="text-sm md:text-base tracking-[0.3em] uppercase text-gray-500 font-medium">
-                        Thanapol <span className="text-rose-300">&</span> Jaruta
-                      </p>
-                    </div>
-                    
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                      กำหนดการพิธีมงคลสมรส
-                    </h2>
-                    <p className="text-rose-600 font-medium text-lg mb-6 flex items-center justify-center gap-2">
-                      3 มกราคม 2570
-                    </p>
-                    
-                    <div className="flex flex-col md:flex-row justify-center items-center gap-3 text-sm text-gray-600">
-                      <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
-                        <Icon name="MapPin" className="w-4 h-4 text-rose-400" />
-                        <span>วัด (เช้า) & รร.อิมพีเรียลแม่ฮ่องสอน</span>
-                      </div>
-                      <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100">
-                        <Icon name="Users" className="w-4 h-4 text-rose-400" />
-                        <span>แขก 200 ท่าน</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="bg-rose-50/50 px-8 py-6 border-t border-rose-100">
-                    <div className="flex justify-between items-end mb-3">
-                      <span className="text-sm font-bold text-gray-600 tracking-wide">PROGRESS</span>
-                      <span className="text-xl font-bold text-rose-500">{progress}%</span>
-                    </div>
-                    <div className="w-full bg-rose-100/50 rounded-full h-4 shadow-inner overflow-hidden">
-                      <div 
-                        className="bg-gradient-to-r from-rose-300 to-rose-400 h-full rounded-full transition-all duration-700 ease-out relative" 
-                        style={{ width: `${progress}%` }}
-                      >
-                        <div className="absolute inset-0 bg-white/20 w-full animate-[shimmer_2s_infinite]"></div>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-500 text-center mt-3 font-medium">
-                      {completedItems.length === schedule.length 
-                        ? "🎉 เสร็จสิ้นพิธีการทั้งหมด ยินดีด้วยครับบ่าวสาว!" 
-                        : `ทำสำเร็จแล้ว ${completedItems.length} จาก ${schedule.length} ขั้นตอน`}
-                    </p>
-                  </div>
-                </div>
-
-                {}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  <div 
-                    className="px-6 py-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => setShowSettings(!showSettings)}
-                  >
-                    <div className="flex items-center gap-2 text-gray-700 font-bold">
-                      <Icon name="Settings" className="w-5 h-5 text-rose-400" />
-                      ตั้งค่าการแจ้งเตือน & โหมดทดสอบระบบ
-                    </div>
-                    {showSettings ? <Icon name="ChevronUp" className="w-5 h-5 text-gray-400" /> : <Icon name="ChevronDown" className="w-5 h-5 text-gray-400" />}
-                  </div>
-                  
-                  {showSettings && (
-                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 space-y-4">
-                      <div className="flex flex-col md:flex-row gap-4 items-end">
-                        <div className="flex-1 w-full">
-                          <label className="block text-sm font-semibold text-gray-600 mb-1 flex items-center gap-1">
-                            <Icon name="Smartphone" className="w-4 h-4 text-emerald-500" /> LINE ID สำหรับรับการแจ้งเตือน
-                          </label>
-                          <input 
-                            type="text" 
-                            placeholder="ระบุ LINE ID..."
-                            value={lineId}
-                            onChange={(e) => setLineId(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                          />
-                        </div>
-                        <div className="text-sm text-gray-500 pb-2 md:pb-3 w-full md:w-auto">
-                          * จะแจ้งเตือนเมื่อกิจกรรมยังไม่ถูกติ๊กเสร็จ และเลยเวลาที่กำหนด
-                        </div>
-                      </div>
-
-                      <div className="p-4 bg-white border border-rose-100 rounded-xl space-y-3">
-                        <h4 className="font-bold text-gray-700 text-sm flex items-center gap-2">
-                          <Icon name="Clock" className="w-4 h-4 text-rose-400" /> ตัวจำลองเวลา (Test Simulator)
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {!isTestMode ? (
-                            <button onClick={startTestMode} className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-all">
-                              <Icon name="Play" className="w-4 h-4" /> เริ่มจำลองเวลา (ไปที่ 3 ม.ค. 70)
-                            </button>
-                          ) : (
-                            <>
-                              <button onClick={advanceTime} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-all">
-                                <Icon name="FastForward" className="w-4 h-4" /> เร่งเวลา +10 นาที
-                              </button>
-                              <button onClick={stopTestMode} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm transition-all">
-                                <Icon name="Power" className="w-4 h-4" /> ปิดการจำลอง
-                              </button>
-                            </>
-                          )}
-                        </div>
-                        {isTestMode && (
-                          <div className="text-xs text-rose-500 font-medium animate-pulse">
-                            * กำลังรันโหมดจำลอง: ลองกดเร่งเวลาเพื่อดูการแจ้งเตือนเมื่อเลยกำหนด
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {}
-                <div className="space-y-4 pb-12">
-                  {schedule.map((item) => {
-                    const isCompleted = completedItems.includes(item.id);
-                    const isExpanded = expandedItem === item.id;
-                    const isEditing = editingId === item.id;
-                    
-                    const isOverdue = (() => {
-                      if (isCompleted) return false;
-                      const end = extractEndTime(item.time);
-                      if (!end) return false;
-                      const itemEndDateTime = new Date(currentTime);
-                      itemEndDateTime.setHours(end.h, end.m, 0, 0);
-                      return (currentTime.getFullYear() === 2027 && currentTime.getMonth() === 0 && currentTime.getDate() === 3) && (currentTime > itemEndDateTime);
-                    })();
-
-                    return (
-                      <div 
-                        key={item.id} 
-                        className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-300 ${
-                          isCompleted && !isEditing 
-                            ? 'border-emerald-200 bg-emerald-50/20 opacity-80' 
-                            : isOverdue && !isEditing
-                              ? 'border-red-400 bg-red-50/30 shadow-red-100 ring-1 ring-red-300'
-                              : 'border-gray-100 hover:shadow-md'
-                        } ${isEditing ? 'ring-2 ring-rose-200 shadow-lg' : ''}`}
-                      >
-                        {/* Item Header */}
-                        <div 
-                          className={`flex items-start sm:items-center p-5 ${!isEditing ? 'cursor-pointer' : ''}`}
-                          onClick={() => !isEditing && toggleExpand(item.id)}
-                        >
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!isEditing) toggleComplete(item.id);
-                            }}
-                            disabled={isEditing}
-                            className={`mr-4 mt-1 sm:mt-0 flex-shrink-0 focus:outline-none transition-transform ${isEditing ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}`}
-                          >
-                            {isCompleted ? (
-                              <Icon name="CheckCircle2" className="w-8 h-8 text-rose-500" />
-                            ) : (
-                              <Icon name="Circle" className="w-8 h-8 text-gray-200 hover:text-rose-300 transition-colors" />
-                            )}
-                          </button>
-                          
-                          <div className="flex-grow pr-4 w-full">
-                            {!isEditing ? (
-                              <>
-                                <div className="flex items-center gap-2">
-                                  <h3 className={`font-bold text-lg transition-colors ${
-                                    isCompleted ? 'text-gray-400 line-through decoration-emerald-300 decoration-2' : 
-                                    isOverdue ? 'text-red-600' : 'text-gray-800'
-                                  }`}>
-                                    {item.title}
-                                  </h3>
-                                  {isOverdue && !isCompleted && (
-                                    <span className="bg-red-100 text-red-600 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 animate-pulse">
-                                      <Icon name="BellRing" className="w-3 h-3" /> Overdue
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-y-1 gap-x-3 text-sm mt-1 font-medium">
-                                  <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md ${isOverdue && !isCompleted ? 'bg-red-100/50 text-red-500' : 'bg-gray-50 text-gray-500'}`}>
-                                    <Icon name="Clock" className={`w-3.5 h-3.5 ${isOverdue && !isCompleted ? 'text-red-500' : 'text-rose-400'}`} />
-                                    {item.time}
-                                  </span>
-                                  <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md ${isOverdue && !isCompleted ? 'bg-red-100/50 text-red-500' : 'bg-gray-50 text-gray-500'}`}>
-                                    <Icon name="MapPin" className={`w-3.5 h-3.5 ${isOverdue && !isCompleted ? 'text-red-500' : 'text-rose-400'}`} />
-                                    {item.location}
-                                  </span>
-                                </div>
-                              </>
-                            ) : (
-                              /* Edit Mode Header */
-                              <div className="space-y-3 w-full" onClick={e => e.stopPropagation()}>
-                                <div>
-                                  <label className="block text-xs font-semibold text-gray-500 mb-1">หัวข้อกิจกรรม</label>
-                                  <input 
-                                    type="text" 
-                                    value={editForm.title}
-                                    onChange={(e) => handleFormChange('title', e.target.value)}
-                                    className="w-full px-3 py-2 border border-rose-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300 text-gray-800 font-bold"
-                                  />
-                                </div>
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                  <div className="flex-1">
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1">เวลา</label>
-                                    <input 
-                                      type="text" 
-                                      value={editForm.time}
-                                      onChange={(e) => handleFormChange('time', e.target.value)}
-                                      className="w-full px-3 py-2 border border-rose-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300 text-gray-600 text-sm"
-                                    />
-                                  </div>
-                                  <div className="flex-1">
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1">สถานที่</label>
-                                    <input 
-                                      type="text" 
-                                      value={editForm.location}
-                                      onChange={(e) => handleFormChange('location', e.target.value)}
-                                      className="w-full px-3 py-2 border border-rose-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300 text-gray-600 text-sm"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {}
-                          <div className="flex-shrink-0 flex items-center gap-2 mt-1 sm:mt-0">
-                            {!isEditing ? (
-                              <>
-                                <button 
-                                  onClick={(e) => startEdit(item, e)}
-                                  className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors"
-                                  title="แก้ไขข้อมูล"
-                                >
-                                  <Icon name="Edit2" className="w-5 h-5" />
-                                </button>
-                                <div className="text-gray-400 ml-1 cursor-pointer">
-                                  {isExpanded ? <Icon name="ChevronUp" className="w-6 h-6" /> : <Icon name="ChevronDown" className="w-6 h-6" />}
-                                </div>
-                              </>
-                            ) : (
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <button 
-                                  onClick={cancelEdit}
-                                  className="p-2 text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium"
-                                >
-                                  <Icon name="X" className="w-4 h-4" /> <span className="hidden sm:inline">ยกเลิก</span>
-                                </button>
-                                <button 
-                                  onClick={saveEdit}
-                                  className="p-2 text-white bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors flex items-center gap-1 text-sm font-medium shadow-sm"
-                                >
-                                  <Icon name="Save" className="w-4 h-4" /> <span className="hidden sm:inline">บันทึก</span>
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {}
-                        {isExpanded && (
-                          <div className="px-5 pb-6 pt-3 bg-gradient-to-b from-gray-50/50 to-[#fdfcfb] border-t border-gray-100">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                              
-                              {/* บ่าวสาว */}
-                              <div className="bg-white p-4 rounded-xl shadow-sm border border-rose-100/60 relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 w-16 h-16 bg-rose-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="bg-rose-100 p-1.5 rounded-lg text-rose-600 shadow-sm">
-                                    <Icon name="Heart" className="w-4 h-4" />
-                                  </div>
-                                  <h4 className="font-bold text-gray-800 text-sm">บ่าวสาว (TJ)</h4>
-                                </div>
-                                {!isEditing ? (
-                                  <p className="text-sm text-gray-600 leading-relaxed">{item.details.couple}</p>
-                                ) : (
-                                  <textarea 
-                                    value={editForm.details.couple}
-                                    onChange={(e) => handleFormChange('couple', e.target.value, true)}
-                                    className="w-full h-24 px-3 py-2 border border-rose-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm text-gray-700 resize-none"
-                                  />
-                                )}
-                              </div>
-
-                              {/* ทีมงาน */}
-                              <div className="bg-white p-4 rounded-xl shadow-sm border border-emerald-100/60 relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600 shadow-sm">
-                                    <Icon name="ClipboardList" className="w-4 h-4" />
-                                  </div>
-                                  <h4 className="font-bold text-gray-800 text-sm">ทีมงาน / รันคิว</h4>
-                                </div>
-                                {!isEditing ? (
-                                  <p className="text-sm text-gray-600 leading-relaxed">{item.details.team}</p>
-                                ) : (
-                                  <textarea 
-                                    value={editForm.details.team}
-                                    onChange={(e) => handleFormChange('team', e.target.value, true)}
-                                    className="w-full h-24 px-3 py-2 border border-emerald-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-300 text-sm text-gray-700 resize-none"
-                                  />
-                                )}
-                              </div>
-
-                              {/* พิธีกร */}
-                              <div className="bg-white p-4 rounded-xl shadow-sm border border-amber-100/60 relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 w-16 h-16 bg-amber-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="bg-amber-100 p-1.5 rounded-lg text-amber-600 shadow-sm">
-                                    <Icon name="Mic" className="w-4 h-4" />
-                                  </div>
-                                  <h4 className="font-bold text-gray-800 text-sm">พิธีกร (MC)</h4>
-                                </div>
-                                {!isEditing ? (
-                                  <p className="text-sm text-gray-600 leading-relaxed">{item.details.mc}</p>
-                                ) : (
-                                  <textarea 
-                                    value={editForm.details.mc}
-                                    onChange={(e) => handleFormChange('mc', e.target.value, true)}
-                                    className="w-full h-24 px-3 py-2 border border-amber-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-300 text-sm text-gray-700 resize-none"
-                                  />
-                                )}
-                              </div>
-
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                
-              </div>
-
-              {}
-              <div className="fixed top-4 right-4 z-50 space-y-3 pointer-events-none w-80 max-w-full">
-                {toasts.map((toast) => (
-                  <div key={toast.id} className="bg-white/95 backdrop-blur-sm border-l-4 border-emerald-500 rounded-lg shadow-xl p-4 transform transition-all animate-[slideIn_0.3s_ease-out]">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-emerald-100 p-2 rounded-full flex-shrink-0">
-                        <Icon name="BellRing" className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-800 text-sm mb-1">{toast.title}</h4>
-                        <p className="text-xs text-gray-600 whitespace-pre-line">{toast.msg}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
+        function saveToLocalStorage() {
+            localStorage.setItem('kai_may_wedding_guests', JSON.stringify(guests));
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<WeddingScheduleApp />);
+        // Render Guests Table and Stats
+        function renderGuests(listToRender) {
+            const tbody = document.getElementById('guestTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const tableCountInfo = document.getElementById('tableCountInfo');
+
+            tbody.innerHTML = '';
+
+            if (!listToRender || listToRender.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                
+                listToRender.forEach((guest, displayIndex) => {
+                    const originalIndex = guests.indexOf(guest);
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-50/80 transition border-b border-gray-100";
+
+                    // Badge color for category
+                    let catBg = "bg-purple-50 text-purple-700 border border-purple-200";
+                    if (guest.category.includes('เจ้าบ่าว')) catBg = "bg-blue-50 text-blue-700 border border-blue-200";
+                    if (guest.category.includes('เจ้าสาว')) catBg = "bg-pink-50 text-pink-700 border border-pink-200";
+                    if (guest.category.includes('VIP')) catBg = "bg-amber-50 text-amber-700 border border-amber-200";
+                    if (guest.category.includes('ญาติ')) catBg = "bg-emerald-50 text-emerald-700 border border-emerald-200";
+                    if (guest.category.includes('เพื่อนร่วมงาน')) catBg = "bg-indigo-50 text-indigo-700 border border-indigo-200";
+
+                    // Badge color for status
+                    let statusHtml = '';
+                    if (guest.status === 'ยืนยันแล้ว') {
+                        statusHtml = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 flex items-center justify-center w-max mx-auto"><i class="fa-solid fa-check mr-1 text-emerald-600"></i>ยืนยันแล้ว</span>`;
+                    } else if (guest.status === 'รอดำเนินการ') {
+                        statusHtml = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 flex items-center justify-center w-max mx-auto"><i class="fa-solid fa-clock mr-1 text-amber-600"></i>รอดำเนินการ</span>`;
+                    } else {
+                        statusHtml = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 flex items-center justify-center w-max mx-auto"><i class="fa-solid fa-xmark mr-1 text-rose-600"></i>ไม่สะดวก</span>`;
+                    }
+
+                    tr.innerHTML = `
+                        <td class="py-4 px-4 sm:px-6 text-center text-gray-400 font-medium">${displayIndex + 1}</td>
+                        <td class="py-4 px-4">
+                            <div class="font-bold text-gray-800 text-base">${escapeHtml(guest.name)}</div>
+                            <div class="text-xs text-gray-400 mt-0.5">ชื่อเล่น: ${escapeHtml(guest.nickname || '-')}</div>
+                        </td>
+                        <td class="py-4 px-4">
+                            <span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${catBg}">${escapeHtml(guest.category)}</span>
+                        </td>
+                        <td class="py-4 px-4 text-center font-semibold text-gray-700">${guest.seats || 1} ที่นั่ง</td>
+                        <td class="py-4 px-4 text-center font-mono font-semibold text-wedding-700 bg-wedding-50/50 rounded-lg">${escapeHtml(guest.table || '-')}</td>
+                        <td class="py-4 px-4 text-center">${statusHtml}</td>
+                        <td class="py-4 px-4">
+                            <div class="text-xs text-gray-700"><i class="fa-solid fa-phone text-gray-400 mr-1"></i>${escapeHtml(guest.phone || '-')}</div>
+                            <div class="text-xs text-gray-400 mt-0.5"><i class="fa-solid fa-note-sticky text-gray-400 mr-1"></i>${escapeHtml(guest.note || '-')}</div>
+                        </td>
+                        <td class="py-4 px-4 text-center">
+                            <div class="flex items-center justify-center space-x-2">
+                                <button type="button" onclick="openEditModal(${originalIndex})" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-wedding-100 text-gray-600 hover:text-wedding-600 transition flex items-center justify-center cursor-pointer" title="แก้ไข">
+                                    <i class="fa-solid fa-pen text-xs"></i>
+                                </button>
+                                <button type="button" onclick="deleteGuest(${originalIndex})" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-rose-100 text-gray-600 hover:text-rose-600 transition flex items-center justify-center cursor-pointer" title="ลบ">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            tableCountInfo.innerText = `แสดงทั้งหมด ${listToRender.length} จาก ${guests.length} รายชื่อ`;
+            updateStats();
+        }
+
+        // Update Dashboard Stats
+        function updateStats() {
+            const totalGuests = guests.length;
+            const totalSeats = guests.reduce((sum, g) => sum + (parseInt(g.seats) || 1), 0);
+            const confirmed = guests.filter(g => g.status === 'ยืนยันแล้ว').length;
+            const pending = guests.filter(g => g.status === 'รอดำเนินการ').length;
+            const declined = guests.filter(g => g.status === 'ไม่สะดวก').length;
+
+            document.getElementById('statTotal').innerText = totalGuests;
+            document.getElementById('statSeats').innerText = totalSeats;
+            document.getElementById('statConfirmed').innerText = confirmed;
+            document.getElementById('statPending').innerText = pending;
+            document.getElementById('statDeclined').innerText = declined;
+        }
+
+        // Filter & Sorting Logic
+        function filterGuests() {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const sortBy = document.getElementById('sortFilter').value;
+
+            let filtered = guests.filter(g => {
+                const matchKeyword = !keyword || 
+                    (g.name && g.name.toLowerCase().includes(keyword)) || 
+                    (g.nickname && g.nickname.toLowerCase().includes(keyword)) ||
+                    (g.phone && g.phone.toLowerCase().includes(keyword)) ||
+                    (g.note && g.note.toLowerCase().includes(keyword)) ||
+                    (g.table && g.table.toLowerCase().includes(keyword));
+
+                const matchCategory = !category || g.category === category;
+                const matchStatus = !status || g.status === status;
+
+                return matchKeyword && matchCategory && matchStatus;
+            });
+
+            // Sort logic
+            filtered.sort((a, b) => {
+                if (sortBy === 'name') {
+                    return (a.name || '').localeCompare(b.name || '', 'th');
+                } else if (sortBy === 'category') {
+                    return (a.category || '').localeCompare(b.category || '', 'th');
+                } else if (sortBy === 'table') {
+                    return (a.table || '').localeCompare(b.table || '', 'en', { numeric: true });
+                } else if (sortBy === 'status') {
+                    return (a.status || '').localeCompare(b.status || '', 'th');
+                }
+                return 0;
+            });
+
+            renderGuests(filtered);
+        }
+
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('categoryFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('sortFilter').value = 'category';
+            filterGuests();
+        }
+
+        // Modal Controls
+        function openAddModal() {
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-user-plus mr-2"></i><span>เพิ่มรายชื่อแขกใหม่</span>';
+            document.getElementById('guestIndex').value = '';
+            document.getElementById('guestForm').reset();
+            document.getElementById('guestSeats').value = '1';
+            document.getElementById('guestStatus').value = 'รอดำเนินการ';
+            document.getElementById('guestModal').classList.remove('hidden');
+        }
+
+        function openEditModal(index) {
+            const g = guests[index];
+            if (!g) return;
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square mr-2"></i><span>แก้ไขข้อมูลแขก</span>';
+            document.getElementById('guestIndex').value = index;
+            document.getElementById('guestName').value = g.name || '';
+            document.getElementById('guestNickname').value = g.nickname || '';
+            document.getElementById('guestCategory').value = g.category || 'อื่นๆ';
+            document.getElementById('guestSeats').value = g.seats || 1;
+            document.getElementById('guestTable').value = g.table || '';
+            document.getElementById('guestStatus').value = g.status || 'รอดำเนินการ';
+            document.getElementById('guestPhone').value = g.phone || '';
+            document.getElementById('guestNote').value = g.note || '';
+            document.getElementById('guestModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('guestModal').classList.add('hidden');
+        }
+
+        // Save Guest (Add or Edit)
+        function saveGuest(event) {
+            event.preventDefault();
+            const indexVal = document.getElementById('guestIndex').value;
+            
+            const nameVal = document.getElementById('guestName').value.trim();
+            if (!nameVal) {
+                showToast('กรุณากรอกชื่อ-นามสกุล', 'error');
+                return;
+            }
+
+            const guestData = {
+                name: nameVal,
+                nickname: document.getElementById('guestNickname').value.trim(),
+                category: document.getElementById('guestCategory').value,
+                seats: parseInt(document.getElementById('guestSeats').value) || 1,
+                table: document.getElementById('guestTable').value.trim(),
+                status: document.getElementById('guestStatus').value,
+                phone: document.getElementById('guestPhone').value.trim(),
+                note: document.getElementById('guestNote').value.trim()
+            };
+
+            if (indexVal === '' || indexVal === null || indexVal === undefined) {
+                guests.push(guestData);
+                showToast('เพิ่มรายชื่อแขกเรียบร้อยแล้ว', 'success');
+            } else {
+                const idx = parseInt(indexVal);
+                guests[idx] = guestData;
+                showToast('อัปเดตข้อมูลแขกเรียบร้อยแล้ว', 'success');
+            }
+
+            saveToLocalStorage();
+            closeModal();
+            filterGuests();
+        }
+
+        // Delete Guest
+        function deleteGuest(index) {
+            const g = guests[index];
+            if (!g) return;
+            
+            // Custom confirmation banner replacing browser alert
+            if (confirm(`คุณต้องการลบรายชื่อ "${g.name}" ใช่หรือไม่?`)) {
+                guests.splice(index, 1);
+                saveToLocalStorage();
+                filterGuests();
+                showToast('ลบรายชื่อเรียบร้อยแล้ว', 'error');
+            }
+        }
+
+        function clearAllGuests() {
+            if (confirm('คุณต้องการลบรายชื่อแขกทั้งหมดในระบบใช่หรือไม่?')) {
+                guests = [];
+                saveToLocalStorage();
+                filterGuests();
+                showToast('ล้างข้อมูลทั้งหมดแล้ว', 'error');
+            }
+        }
+
+        function loadSampleData() {
+            guests = [...defaultGuests];
+            saveToLocalStorage();
+            filterGuests();
+            showToast('โหลดข้อมูลตัวอย่างสำเร็จ', 'success');
+        }
+
+        // Excel Export
+        function exportToExcel() {
+            if (guests.length === 0) {
+                showToast('ไม่มีข้อมูลสำหรับ Export', 'error');
+                return;
+            }
+
+            // Map data to Thai headers for Excel
+            const exportData = guests.map((g, idx) => ({
+                "ลำดับ": idx + 1,
+                "ชื่อ - นามสกุล": g.name || "",
+                "ชื่อเล่น": g.nickname || "",
+                "หมวดหมู่": g.category || "อื่นๆ",
+                "จำนวนที่นั่ง": g.seats || 1,
+                "โต๊ะที่นั่ง": g.table || "",
+                "สถานะ RSVP": g.status || "รอดำเนินการ",
+                "เบอร์โทรศัพท์": g.phone || "",
+                "หมายเหตุ": g.note || ""
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            
+            worksheet['!cols'] = [
+                {wch: 8},  // ลำดับ
+                {wch: 28}, // ชื่อ - นามสกุล
+                {wch: 12}, // ชื่อเล่น
+                {wch: 22}, // หมวดหมู่
+                {wch: 12}, // จำนวนที่นั่ง
+                {wch: 12}, // โต๊ะที่นั่ง
+                {wch: 15}, // สถานะ RSVP
+                {wch: 16}, // เบอร์โทรศัพท์
+                {wch: 28}  // หมายเหตุ
+            ];
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "รายชื่อแขกงานแต่ง");
+
+            XLSX.writeFile(workbook, "Kai_May_Wedding_Guest_List.xlsx");
+            showToast('Export ไฟล์ .xlsx สำเร็จ', 'success');
+        }
+
+        // Excel Import Helper with Dynamic Field Detection
+        function handleExcelImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+                    if (!json || json.length === 0) {
+                        showToast('ไฟล์ Excel ไม่มีข้อมูลหรือไม่ถูกต้อง', 'error');
+                        return;
+                    }
+
+                    // Dynamic column header mapper
+                    const importedGuests = json.map(row => {
+                        let name = "";
+                        let nickname = "";
+                        let category = "อื่นๆ";
+                        let seats = 1;
+                        let table = "";
+                        let status = "รอดำเนินการ";
+                        let phone = "";
+                        let note = "";
+
+                        // Smart match key
+                        Object.keys(row).forEach(key => {
+                            const k = key.trim().toLowerCase();
+                            const val = String(row[key]).trim();
+
+                            if (k.includes('ชื่อ') && !k.includes('เล่น') && !name) {
+                                name = val;
+                            } else if (k.includes('name') && !name) {
+                                name = val;
+                            } else if (k.includes('เล่น') || k.includes('nick')) {
+                                nickname = val;
+                            } else if (k.includes('หมวด') || k.includes('กลุ่ม') || k.includes('cat')) {
+                                category = val || "อื่นๆ";
+                            } else if (k.includes('นั่ง') || k.includes('จำนวน') || k.includes('seat')) {
+                                seats = parseInt(val) || 1;
+                            } else if (k.includes('โต๊ะ') || k.includes('table')) {
+                                table = val;
+                            } else if (k.includes('สถานะ') || k.includes('status') || k.includes('rsvp')) {
+                                status = val || "รอดำเนินการ";
+                            } else if (k.includes('โทร') || k.includes('phone') || k.includes('mobile')) {
+                                phone = val;
+                            } else if (k.includes('เหตุ') || k.includes('note') || k.includes('หมายเหตุ')) {
+                                note = val;
+                            }
+                        });
+
+                        // Fallback if name column wasn't explicitly found
+                        if (!name) {
+                            const vals = Object.values(row).filter(v => v !== "");
+                            name = vals[1] || vals[0] || "แขกไม่ระบุชื่อ";
+                        }
+
+                        return { name, nickname, category, seats, table, status, phone, note };
+                    });
+
+                    guests = importedGuests;
+                    saveToLocalStorage();
+                    filterGuests();
+                    showToast(`นำเข้าข้อมูลสำเร็จ ${guests.length} รายชื่อ`, 'success');
+                } catch (err) {
+                    console.error(err);
+                    showToast('เกิดข้อผิดพลาดในการนำเข้าไฟล์ Excel', 'error');
+                }
+                event.target.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Toast Notification helper
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMessage.innerText = message;
+            if (type === 'success') {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+            } else {
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-rose-400 text-lg";
+            }
+
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3000);
+        }
+
+        // Escape HTML for safety
+        function escapeHtml(text) {
+            if (text === null || text === undefined) return '';
+            return text.toString()
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
     </script>
 </body>
 </html>
